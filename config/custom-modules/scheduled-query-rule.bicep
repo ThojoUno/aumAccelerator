@@ -1,5 +1,5 @@
 /*
-  scheduled-query-rule.aum.bicep
+  scheduled-query-rule.bicep
   DESCRIPTION: Creates a Schedule query rule.
   AUTHOR: jthompson@lunavi.com
   DATE: 11/21/2023
@@ -8,7 +8,7 @@
 
 
 param parLocation string = resourceGroup().location
-param parAlertName string = 'COTA PROD-PatchInstallationFailure'
+param parAlertName string = 'PROD-PatchInstallationFailure'
 param parAlertDescription string = 'Azure Update Manager has detected a status of "failed" for a recent update deployment.'
 param parAlertSeverity int = 1
 param parEvaluationFrequency string = 'PT5M'

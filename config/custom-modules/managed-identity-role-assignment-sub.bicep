@@ -1,5 +1,5 @@
 /*
-  role-assignment-mi-sub.aum.bicep
+  managed-identity-role-assignment-sub.bicep
   DESCRIPTION: Assigns an managed identity role at a Subscription level
   AUTHOR: jthompson@lunavi.com
   DATE: 11/21/2023

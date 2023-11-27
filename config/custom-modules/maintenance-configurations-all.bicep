@@ -1,5 +1,5 @@
 /*
-  maintenance-configurations.aum.bicep
+  maintenance-configurations.all.bicep
   This template is used to create a maintenance configurations for Azure Update Manager.
   This template expects an array of maintenance configurations to process
   Author: jthompson@lunavi.com
@@ -10,7 +10,6 @@
 targetScope = 'managementGroup'
 
 param parLocation string
-// param maintenanceConfigurationName string
 param parMaintenanceConfigurations array
 param parSubscriptionId string
 param parResourceGroupName string
@@ -18,10 +17,11 @@ param parTimeZone string = 'Central Standard Time'
 param parTags object
 
 // create maintenance configurations, this modules scope is at the resource group level since we are creating resources.
-module modMaintConfigs 'maintenance-configuration.aum.bicep' = [for (mi,i) in parMaintenanceConfigurations: {
+module modMaintConfigs './maintenance-configuration.bicep' = [for (mi,i) in parMaintenanceConfigurations: {
   name: mi.name
   scope: resourceGroup(parSubscriptionId,parResourceGroupName)
   params: {
+    parLocation: parLocation
     tags: parTags
     parTimeZone: parTimeZone
     parMaintenanceConfigurationName: mi.name

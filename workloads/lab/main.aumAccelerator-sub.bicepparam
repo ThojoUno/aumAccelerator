@@ -6,6 +6,12 @@ using '../../config/custom-modules/main.aumAccelerator-sub.bicep'
 
   This version is subscription based.
 
+  aumSettings.checkUpdatePolicy is assigned to the topLevelManagementGroupPrefix
+  aumSettings.checkUpdatePolicy.enabled - Should normally leave as true, but can set to false for testing purposes.
+
+  aumSettings.managedIdentity.roleDefinitionId - '73c42c96-874c-492b-b04d-ab87d138a893' is "Log Analytics Reader" role required for scheduledQueryRule based alerts.
+  aumSettings.managedIdentity.enabled - Should typically leave this as true, but can set to false for testing purposes.
+
 */
 
 param aumSettings = {
@@ -21,7 +27,7 @@ param aumSettings = {
   }
   subscriptions: [
     {
-      subscriptionId: '00000000-0000-0000-0000-123456789098'
+      subscriptionId: '00000000-0000-0000-0000-000000000000'
       subscriptionName: 'Lab-Hub-Sandbox'
       resourceGroupName: 'rg-westus2-UpdateManager-hub'
       tags: {
@@ -67,20 +73,17 @@ param aumSettings = {
         name: 'ag-AumAccelerator-hub'
         shortName: 'aumActionGrp'
         emailReceivers: [
-          {
-            name: 'Joe Thompson'
-            emailAddress: 'jthompson@lunavi.com'
-            useCommonAlertSchema: true
-          }
+          'jthompson@lunavi.com'
         ]
       }
-      actionRule: {
+      alertProcessingRule: {
         name: 'Hub-Update Manager Alert Processing Rule'
+        description: 'Hub Update Manager Alert Processing Rule'
         enabled: true
       }
     }
     {
-      subscriptionId: '00000000-0000-0000-0000-123456789098'
+      subscriptionId: '00000000-0000-0000-0000-000000000000'
       subscriptionName: 'Lab-Prod-Sandbox'
       resourceGroupName: 'rg-westus2-UpdateManager-prod'
       tags: {
@@ -125,15 +128,12 @@ param aumSettings = {
         name: 'ag-aumAccelerator-prod'
         shortName: 'aumActionGrp'
         emailReceivers: [
-          {
-            name: 'Joe Thompson'
-            emailAddress: 'jthompson@lunavi.com'
-            useCommonAlertSchema: true
-          }
+          'jthompson@lunavi.com'
         ]
       }
-      actionRule: {
+      alertProcessingRule: {
         name: 'Prod-Update Manager Alert Processing Rule'
+        description: 'Production Update Manager Alert Processing Rule'
         enabled: true
       }
     }
@@ -165,6 +165,7 @@ param aumSettings = {
     }
     assessmentFailures: {
       name: 'Assessment failures'
+      description: 'Patch assessment failures scheduled query rule.'
       enabled: true
       evaluationFrequency: 'PT6H'
       windowSize: 'PT6H'
@@ -173,11 +174,11 @@ param aumSettings = {
         allOf: [
           {
             query: '''arg('').patchassessmentresources
-              | where type in~ ("microsoft.compute/virtualmachines/patchassessmentresults", "microsoft.hybridcompute/machines/patchassessmentresults")
-              | where properties.status =~ "Failed" // "CompletedWithWarnings" and other statuses can also be considered
-              | where properties.lastModifiedDateTime > ago(1d)
-              | parse id with vmResourceId "/patchAssessmentResults" *
-              | project vmResourceId'''
+            | where type in~ ("microsoft.compute/virtualmachines/patchassessmentresults", "microsoft.hybridcompute/machines/patchassessmentresults")
+            | where properties.status =~ "Failed" // "CompletedWithWarnings" and other statuses can also be considered
+            | where properties.lastModifiedDateTime > ago(1d)
+            | parse id with vmResourceId "/patchAssessmentResults" *
+            | project vmResourceId'''
             timeAggregation: 'Count'
             dimensions: []
             operator: 'GreaterThan'
@@ -188,15 +189,16 @@ param aumSettings = {
             }
           }
         ]
-      }  
+      }
       autoMitigate: true
     }
-    patchInstallationFailures: {
+    installationFailures: {
       name: 'Patch installation failures'
+      description: 'Patch installation failures scheduled query rule.'
       enabled: true
       evaluationFrequency: 'PT6H'
       windowSize: 'PT6H'
-      severity: 1
+      severity: 2
       alertCriteria: {
         allOf: [
           {
@@ -217,8 +219,8 @@ param aumSettings = {
             }
           }
         ]
-      } 
-      autoMitigate: true 
+      }
+      autoMitigate: true
     }
   }
 

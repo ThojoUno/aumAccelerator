@@ -1,5 +1,5 @@
 /*
-  main.aumAcceleratorSub.aum.bicep
+  main.aumAccelerator-sub.bicep
   DESCRIPTION: Bicep template will deploy all prerequisites for Azure Update Manager.
   AUTHOR: jthompson@lunavi.com
   DATE: 11/21/2023
@@ -44,7 +44,7 @@ module modResourceGroups '../../infra-as-code/bicep/modules/resourceGroup/resour
 // Create all defined maintenance configurations in bicepparam file.
 // This module also creates the Azure Policy assignments for each maintenance configuration,
 // so the module must be scoped at the management group level, which is the default scope.
-module modMaintConfigs 'maintenance-configurations-all.aum.bicep' = [for (sub, i) in aumSettings.subscriptions: {
+module modMaintConfigs './maintenance-configurations-all.bicep' = [for (sub, i) in aumSettings.subscriptions: {
   name: '${uniqueString(deployment().name, parLocation)}-maintenanceConfigurations-${i}'
   dependsOn: [
     modResourceGroups
@@ -60,20 +60,22 @@ module modMaintConfigs 'maintenance-configurations-all.aum.bicep' = [for (sub, i
 }]
 
 // Create user assigned managed identity required for AUM alerting.
-module modLawsIdentity 'managed-identity.aum.bicep' = [for (sub, i) in aumSettings.subscriptions: {
+// module modLawsIdentity 'managed-identity.lunavi.bicep' = if (aumSettings.managedIdentity.enabled) {
+module modLawsIdentity './managed-identity.bicep' = [for (sub, i) in aumSettings.subscriptions: {
   name: '${uniqueString(deployment().name, parLocation)}-userAssignedIdentity-${i}'
   scope: resourceGroup(sub.subscriptionId,sub.resourceGroupName)
   dependsOn: [
     modResourceGroups
   ]
   params: {
+    parLocation: parLocation
     parTags: sub.tags
     parManagedIdentityName: sub.managedIdentity.name
   }
 }]
 
 // Assign "Log Analytics Reader" role to subscriptions set as scope in scheduled query rule alerts.
-module modRoleAssignment 'managed-identity-role-assignment-sub.aum.bicep' = [for (sub, i) in aumSettings.subscriptions : {
+module modRoleAssignment './managed-identity-role-assignment-sub.bicep' = [for (sub, i) in aumSettings.subscriptions : {
   name: '${uniqueString(deployment().name, parLocation)}-userAssignedIdentity-roleAssignment-${i}'
   scope: subscription(sub.subscriptionId)
   dependsOn: [
@@ -87,43 +89,32 @@ module modRoleAssignment 'managed-identity-role-assignment-sub.aum.bicep' = [for
   }
 }]
 
-// create Action group for AUM alerts.
-// Using Microsoft public Bicep registry module.
-// module modActionGroup 'br/public:avm/res/insights/action-group:0.2.1' = {
-//   name: '${uniqueString(deployment().name, parLocation)}-actionGroup'
-//   scope: resourceGroup(aumSettings.subscriptionId,aumSettings.resourceGroupName)
-//   dependsOn: [
-//     modAcceleratorRg
-//   ]
-//   params: {
-//     name: aumSettings.actionGroup.name
-//     groupShortName: aumSettings.actionGroup.shortName
-//     emailReceivers: aumSettings.actionGroup.emailRecievers
-//   }
-// }
-
-module modActionGroup 'action-group.aum.bicep' = [for (sub, i) in aumSettings.subscriptions : {
-  name: '${uniqueString(deployment().name, parLocation)}-actionGroup-${i}'
+// move to consolidated action group/alert processing rule module
+module modAlertProcessingRules './alert-processing-rule.bicep' = [for (sub, i) in aumSettings.subscriptions :{
+  name: '${uniqueString(deployment().name, parLocation)}-alertProcessingRule-${i}'
   scope: resourceGroup(sub.subscriptionId,sub.resourceGroupName)
   dependsOn: [
     modResourceGroups
   ]
   params: {
     parTags: sub.tags
+    parEmailAddresses: sub.actionGroup.emailReceivers
     parActionGroupName: sub.actionGroup.name
     parActionGroupShortName: sub.actionGroup.shortName
-    parEmailReceivers: sub.actionGroup.emailReceivers
+    parAlertProcessingRuleName: sub.alertProcessingRule.name
+    parAlertProcessingRuleDescription: sub.alertProcessingRule.description
   }
 }]
 
 // Create pending updates alert via scheduled query rule.
-module modPendingUpdatesAlert 'scheduled-query-rule.aum.bicep' = [for (sub, i) in aumSettings.subscriptions : {
+module modPendingUpdatesAlert './scheduled-query-rule.bicep' = [for (sub, i) in aumSettings.subscriptions : {
   scope: resourceGroup(sub.subscriptionId,sub.resourceGroupName)
   name: '${uniqueString(deployment().name, parLocation)}-pendingUpdates-${i}'
   dependsOn: [
     modRoleAssignment
   ]
   params: {
+    parLocation: parLocation
     parTags: sub.tags
     parAlertName: '${sub.subscriptionName}-${aumSettings.alerts.pendingUpdates.name}'
     parAlertDescription: aumSettings.alerts.pendingUpdates.description
@@ -140,19 +131,51 @@ module modPendingUpdatesAlert 'scheduled-query-rule.aum.bicep' = [for (sub, i) i
 }]
 
 // Create assessment failures alert
-
-// Create Patch installation failures alert
-
-// Create Alert processing rule
-module modAlertProcessingRules 'alert-processing-rules-sub.aum.bicep' = [for (sub, i) in aumSettings.subscriptions :{
-  name: '${uniqueString(deployment().name, parLocation)}-alertProcessingRule-${i}'
+module modAssessmentFailuresAlert './scheduled-query-rule.bicep' = [for (sub, i) in aumSettings.subscriptions : {
   scope: resourceGroup(sub.subscriptionId,sub.resourceGroupName)
+  name: '${uniqueString(deployment().name, parLocation)}-assessmentFailures-${i}'
   dependsOn: [
-    modResourceGroups
+    modRoleAssignment
   ]
   params: {
+    parLocation: parLocation
     parTags: sub.tags
-    parActionRuleName: sub.actionRule.name
-    parActionGroupName: sub.actionGroup.name
+    parAlertName: '${sub.subscriptionName}-${aumSettings.alerts.assessmentFailures.name}'
+    parAlertDescription: aumSettings.alerts.assessmentFailures.description
+    parAlertSeverity: aumSettings.alerts.assessmentFailures.severity
+    parEvaluationFrequency: aumSettings.alerts.assessmentFailures.evaluationFrequency
+    parWindowSize: aumSettings.alerts.assessmentFailures.windowSize
+    parAlertCriteria: aumSettings.alerts.assessmentFailures.alertCriteria
+    parAutoMitigate: aumSettings.alerts.assessmentFailures.autoMitigate
+    parManagedIdentityName: sub.managedIdentity.name
+    parScopes: [
+      '/subscriptions/${sub.subscriptionId}'
+    ]
   }
 }]
+
+
+// Create Patch installation failures alert
+module modInstallationFailuresAlert './scheduled-query-rule.bicep' = [for (sub, i) in aumSettings.subscriptions : {
+  scope: resourceGroup(sub.subscriptionId,sub.resourceGroupName)
+  name: '${uniqueString(deployment().name, parLocation)}-installationFailures-${i}'
+  dependsOn: [
+    modRoleAssignment
+  ]
+  params: {
+    parLocation: parLocation
+    parTags: sub.tags
+    parAlertName: '${sub.subscriptionName}-${aumSettings.alerts.installationFailures.name}'
+    parAlertDescription: aumSettings.alerts.installationFailures.description
+    parAlertSeverity: aumSettings.alerts.installationFailures.severity
+    parEvaluationFrequency: aumSettings.alerts.installationFailures.evaluationFrequency
+    parWindowSize: aumSettings.alerts.installationFailures.windowSize
+    parAlertCriteria: aumSettings.alerts.installationFailures.alertCriteria
+    parAutoMitigate: aumSettings.alerts.installationFailures.autoMitigate
+    parManagedIdentityName: sub.managedIdentity.name
+    parScopes: [
+      '/subscriptions/${sub.subscriptionId}'
+    ]
+  }
+}]
+
