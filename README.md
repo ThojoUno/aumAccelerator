@@ -1,7 +1,7 @@
 # Azure Update Manager Accelerator (aumAccelerator)
-The Azure Update Manager Accelerator (aumAccelerator) is a set of Azure Bicep templates for implementing all the Azure policies, maintenance configurations, alert rules, action groups, and alert processing rules required to manage software updates of Windows virtual machines in Azure, or Azure Arc-enabled virtual machines on-premise at scale. [Azure Update Manager](https://learn.microsoft.com/en-us/azure/update-manager/overview?tabs=azure-vms) is replacing Azure Update Management with Azure Automation, which is [retiring August 2024](https://azure.microsoft.com/en-us/updates/were-retiring-the-log-analytics-agent-in-azure-monitor-on-31-august-2024/).
+The Azure Update Manager Accelerator (aumAccelerator) is a set of Azure Bicep templates for implementing all the Azure policies, maintenance configurations, alert rules, action groups, and alert processing rules required to manage software updates of Windows virtual machines in Azure, or Azure Arc-enabled virtual machines on-premises at scale. [Azure Update Manager](https://learn.microsoft.com/en-us/azure/update-manager/overview?tabs=azure-vms) is replacing Azure Update Management with Azure Automation, which is [retiring August 2024](https://azure.microsoft.com/en-us/updates/were-retiring-the-log-analytics-agent-in-azure-monitor-on-31-august-2024/).
 
-This accelerator is designed to be deployed in an Azure Landing Zone (ALZ) environment on a per-subscription basis. This allows for different configurations based on application subscriptions, production subscriptions and other non-production subscriptions. For non-production subscriptions, you can scheduled the deployment of software updates based on Patch Tuesday, which is the 2nd Tuesday of the month. Then schedule virtual machine resources separately for production subscriptions. This allows you to test software updates in non-production environments before deploying to production environments.
+This accelerator is designed to be deployed in an Azure Landing Zone (ALZ) environment on a per-subscription basis. This allows for different configurations based on application subscriptions, production subscriptions and other non-production subscriptions. For non-production subscriptions, you can schedule the deployment of software updates based on Patch Tuesday, which is the 2nd Tuesday of the month. Then schedule virtual machine resources separately for production subscriptions. This allows you to test software updates in non-production environments before deploying to production environments.
 
 This accelerator also deploys a separate maintenance configuration that will deploy Microsoft anti-malware (Defender) definitions on an hourly, or daily basis.
 
@@ -13,7 +13,7 @@ The aumAccelerator uses a number of Bicep modules from the [ALZ-Bicep](https://g
 ### ALZ-Bicep
 I recommend you start with the [ALZ-Bicep accelerator](https://github.com/Azure/ALZ-Bicep/wiki/Accelerator), which will give you the basic framework for successfully implementing the aumAccelerator. After you complete the steps to implement the ALL-Bicep accelerator, copy the workloads/103-core-azure-update-manager files to your local ALZ-Bicep\workloads folder. We keep custom modules in a separate **workloads** folder so as not to cause any conflicts with upgrading of the ALZ-Bicep files.
 
-The aumAccelerator uses several Bicep modules from the ALZ-Bicep repo. The **policyAssignmentManagementGroup.bicep** module to assign the *"Configure periodic checking for missing system updates on azure virtual machines"* policy definition to the Intermediate root management group. If you are not familar with policy assignment in Azure Landing zones, I recommend you visit the [Azure Enterprise Scale Landing Zone (ESLZ)](https://github.com/Azure/Enterprise-Scale/wiki/ALZ-Policies) architecture documentation before continuing.
+The aumAccelerator uses several Bicep modules from the ALZ-Bicep repo. The **policyAssignmentManagementGroup.bicep** module to assign the *"Configure periodic checking for missing system updates on azure virtual machines"* policy definition to the Intermediate root management group. If you are not familiar with policy assignment in Azure Landing zones, I recommend you visit the [Azure Enterprise Scale Landing Zone (ESLZ)](https://github.com/Azure/Enterprise-Scale/wiki/ALZ-Policies) architecture documentation before continuing.
 
 ### Azure Verified Modules (AVM)
 Azure Verified Modules (AVM) is an initiative to consolidate and set the standards for what a good Infrastructure-as-Code module looks like.
@@ -33,20 +33,30 @@ Azure Verified Modules enable and accelerate consistent solution development and
 6. **alertProcessingRule.bicep** - Creates the Azure alert processing rule for the specified subscription. Also creates an Action group.
 7. **scheduledQueryRule.bicep** - Creates the Azure scheduled query rules for the specified subscription. This module is called multiple times to create the different update alerts already available in the Azure Update Manager solution. Alerts are: PendingUpdates, AssessmentFailures, and InstallationFailures.
 
-## Pipelines
-An Azure DevOps pipeline is available in the workloads/103-core-azure-update-manager/pipelines folder. **Note:** The pipeline using Azure CLI, so only the parameter file needs to be specified in the deployment, the Bicep template is referenced directly by the Bicep parameter file.
-
 ## Subscriptions array in Bicep parameters file (Bicepparm)
 Deployment is meant to be by subscription, for each subscription you need Azure Update Manager deployed, duplicate the first subscription object, paste and update per subscription.
 
-## Local Deployment
-A Powershell script is provided to deploy the accelerator without using a pipeline. It is located in the workloads/lab folder. 
+## Dynamic Bicep parameter file
+The Bicep parameter file leverages the environment (.env) file created as part of the ALZ-Bicep landing zone accelerator. We pull the location (**LOCATION** environment variable) and top level management group value (**TOP_LEVEL_MG_PREFIX** environment variable) from the environment file. You can also add additional subscriptions in scope for the Aum Accelerator (**DEV_SUBSCRIPTION** environment variable).
+
+```
+param parLocation = readEnvironmentVariable('LOCATION', 'centralus')
+var varManagementGroupId = readEnvironmentVariable('TOP_LEVEL_MG_PREFIX', '')
+var varDevSubscriptionId = readEnvironmentVariable('EAM_DEV_SUBSCRIPTION_ID', '')
+
+```
+
+## Azure DevOps Pipeline
+An Azure DevOps pipeline is available in the workloads/103-core-azure-update-manager/pipelines folder. **Note:** The pipeline uses Azure CLI, so only the parameter file needs to be specified in the deployment, the Bicep template is referenced directly by the Bicep parameter file.
+
+## Azure PowerShell (Local Deployment)
+A PowerShell script is provided to deploy the accelerator without using a pipeline. It is located in the workloads/lab folder. 
 
 ```
 $Location = 'centralus'
 
 #Lab
-$TenantId = '00000000-0000-0000-0000-123456789098'
+$tenantId = '00000000-0000-0000-0000-123456789098'
 $ManagementGroupPrefix = 'alz'
 
 Connect-AzAccount -TenantId $tenantId
