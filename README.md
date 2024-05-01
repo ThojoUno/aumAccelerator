@@ -34,7 +34,7 @@ Azure Verified Modules enable and accelerate consistent solution development and
 7. **scheduledQueryRule.bicep** - Creates the Azure scheduled query rules for the specified subscription. This module is called multiple times to create the different update alerts already available in the Azure Update Manager solution. Alerts are: PendingUpdates, AssessmentFailures, and InstallationFailures.
 
 ## Pipelines
-An Azure DevOps pipeline is available in the workloads/103-core-azure-update-manager/pipelines folder.
+An Azure DevOps pipeline is available in the workloads/103-core-azure-update-manager/pipelines folder. **Note:** The pipeline using Azure CLI, so only the parameter file needs to be specified in the deployment, the Bicep template is referenced directly by the Bicep parameter file.
 
 ## Subscriptions array in Bicep parameters file (Bicepparm)
 Deployment is meant to be by subscription, for each subscription you need Azure Update Manager deployed, duplicate the first subscription object, paste and update per subscription.
