@@ -1,5 +1,5 @@
 /*
-  main.aumAccelerator-sub.bicep
+  main.bicep
   DESCRIPTION: Bicep template will deploy all prerequisites for Azure Update Manager.
   AUTHOR: jthompson@lunavi.com
   DATE: 11/21/2023
@@ -12,14 +12,13 @@
 
 targetScope = 'managementGroup'
 
+@sys.description('Deployment location')
 param parLocation string = deployment().location
-// param parSubscriptionId string
 
-
-@description('Settings from bicepparam parameters file.')
+@description('Required: Accelerator settings object from bicepparam parameters file.')
 param parAumSettings object
 
-@description('Azure policies to assign to enable Azure Update Manager.')
+@description('Required: Azure policies to assign to enable Azure Update Manager.')
 param parPolicyAssignments object
 
 // Use Alz-Bicep module for Management group policy assignment.
@@ -36,6 +35,7 @@ module modPeriodicAssessment '../../upstream-releases/v0.17.2/infra-as-code/bice
 }
 
 // Create resource group in each subscription for AUM maintenance configurations, managed identity, and alert rules.
+// Resource group creation should always be scoped to a subscription
 module modResourceGroups 'br/public:avm/res/resources/resource-group:0.2.3' = [for (sub, i) in parAumSettings.subscriptions: {
   scope: subscription(sub.subscriptionId)
   name: '${uniqueString(deployment().name, parLocation)}-AzureUpdateManager-rg-${i}'
@@ -45,7 +45,6 @@ module modResourceGroups 'br/public:avm/res/resources/resource-group:0.2.3' = [f
     tags: sub.tags
   }
 }]
-
 
 // Create all defined maintenance configurations in bicepparam file.
 // This module also creates the Azure Policy assignments for each maintenance configuration,
@@ -66,7 +65,6 @@ module modMaintConfigs './modules/maintenanceConfiguration.all.bicep' = [for (su
 }]
 
 // Create user assigned managed identity required for AUM alerting.
-// module modLawsIdentity 'managed-identity.lunavi.bicep' = if (parAumSettings.managedIdentity.enabled) {
 module modLawsIdentity './modules/managedIdentity.bicep' = [for (sub, i) in parAumSettings.subscriptions: {
   name: '${uniqueString(deployment().name, parLocation)}-userAssignedIdentity-${i}'
   scope: resourceGroup(sub.subscriptionId,sub.resourceGroupName)
@@ -80,7 +78,7 @@ module modLawsIdentity './modules/managedIdentity.bicep' = [for (sub, i) in parA
   }
 }]
 
-// Assign "Log Analytics Reader" role to subscriptions set as scope in scheduled query rule alerts.
+// Assign "Log Analytics Reader" role to subscriptions scope in scheduled query rule alerts.
 module modRoleAssignment './modules/managedIdentityRoleAssignmentSubscription.bicep' = [for (sub, i) in parAumSettings.subscriptions : {
   name: '${uniqueString(deployment().name, parLocation)}-userAssignedIdentity-roleAssignment-${i}'
   scope: subscription(sub.subscriptionId)
