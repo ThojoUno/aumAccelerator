@@ -1,3 +1,11 @@
+
+/*
+
+This Bicep parameter file has been replaced, use main.bicepparam file in workloads folder.
+
+
+*/
+
 using '../../config/custom-modules/main.aumAccelerator-sub.bicep'
 
 /*
