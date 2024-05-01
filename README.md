@@ -39,7 +39,7 @@ Deployment is meant to be by subscription, for each subscription you need Azure 
 ## Dynamic Bicep parameter file
 Bicep provides a function called *readEnvironmentVariable()* that allows you to retrieve values from environment variables. It also offers the flexibility to set a default value if the environment variable doesn't exist. This function can only be used in the .bicepparam files. For more information, see [Bicep parameters](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/parameter-files?tabs=Bicep) file.
 
-The Aum Accelerator Bicep parameter file leverages the environment (.env) file created as part of the ALZ-Bicep landing zone accelerator. We pull the location (**LOCATION** environment variable) and top level management group value (**TOP_LEVEL_MG_PREFIX** environment variable) from the environment file. You can also add additional subscriptions in scope for the Aum Accelerator (**DEV_SUBSCRIPTION** environment variable).
+The Aum Accelerator Bicep parameter file leverages the environment (.env) file created as part of the ALZ-Bicep landing zone accelerator. We pull the location (**LOCATION** environment variable) and top-level management group value (**TOP_LEVEL_MG_PREFIX** environment variable) from the environment file. You can also add additional subscriptions in scope for the Aum Accelerator (**DEV_SUBSCRIPTION** environment variable).
 
 ```
 param parLocation = readEnvironmentVariable('LOCATION', 'centralus')
