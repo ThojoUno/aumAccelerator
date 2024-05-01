@@ -14,16 +14,14 @@ using 'main.bicep'
 
 */
 
-
-// param parSubscriptionId = readEnvironmentVariable('MANAGEMENT_SUBSCRIPTION_ID','')
 param parLocation = readEnvironmentVariable('LOCATION','centralus')
 
 var varManagementGroupId = readEnvironmentVariable('TOP_LEVEL_MG_PREFIX','')
 
-var varDevSubscriptionId = readEnvironmentVariable('EAM_DEV_SUBSCRIPTION_ID','')
+var varDevSubscriptionId = readEnvironmentVariable('DEV_SUBSCRIPTION_ID','')
 
 // if a production subscription is added, we will need to add it to the subscriptions section.
-//var varProdSubscriptionId = readEnvironmentVariable('EAM_PROD_SUBSCRIPTION_ID','')
+//var varProdSubscriptionId = readEnvironmentVariable('PROD_SUBSCRIPTION_ID','')
 
 param parPolicyAssignments = {
   checkUpdatePolicy: {
@@ -98,12 +96,13 @@ param parAumSettings = {
         enabled: true
       }
     }
+    // *** UNCOMMENT THIS SECTION IF A PRODUCTION SUBSCRIPTION IS ADDED ***
     // {
-    //   subscriptionId: '00000000-0000-0000-0000-000000000000'
-    //   subscriptionName: 'Lab-Prod-Sandbox'
-    //   resourceGroupName: 'rg-westus2-UpdateManager-prod'
+    //   subscriptionId: varProdSubscriptionId
+    //   subscriptionName: 'Production Subscription'
+    //   resourceGroupName: 'rg-centralus-UpdateManager'
     //   tags: {
-    //     Environment: 'Prod-Lab'
+    //     Environment: 'Prod'
     //     _deployed_by_aumAccelerator: 'true'
     //   }
     //   maintenanceConfigurations: [
@@ -136,12 +135,12 @@ param parAumSettings = {
     //   ]
     //   managedIdentity: {
     //     enabled: true
-    //     name: 'mi-lawsReader-prod'
+    //     name: 'mi-lawsReader'
     //     roleDefinitionId: '73c42c96-874c-492b-b04d-ab87d138a893'
     //   }
     //   actionGroup: {
     //     enabled: true
-    //     name: 'ag-aumAccelerator-prod'
+    //     name: 'ag-aumAccelerator'
     //     shortName: 'aumActionGrp'
     //     emailReceivers: [
     //       'jthompson@lunavi.com'
@@ -239,5 +238,4 @@ param parAumSettings = {
       autoMitigate: true
     }
   }
-
 }

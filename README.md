@@ -8,20 +8,26 @@ This accelerator also deploys a separate maintenance configuration that will dep
 Alerts are configured to notify you when software updates are available, and when software updates are installed. Alerts are also configured to notify you if a patch assessment or software update deployment has failed. Alert severity is configurable. Pre-warning, alerting is still a work in progress, but the basics are included.
 
 ## Prerequisites
-The aumAccelerator uses a number of Bicep modules from the [ALZ-Bicep](https://github.com/Azure/ALZ-Bicep/) Github repository, and from the [Common Azure Resource Modules Library (CARML)](https://github.com/Azure/ResourceModules) Github repository.
+The aumAccelerator uses a number of Bicep modules from the [ALZ-Bicep](https://github.com/Azure/ALZ-Bicep/) Github repository, and from the [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/) library.
 
 ### ALZ-Bicep
 I recommend you start with the [ALZ-Bicep accelerator](https://github.com/Azure/ALZ-Bicep/wiki/Accelerator), which will give you the basic framework for successfully implementing the aumAccelerator. After you complete the steps to implement the ALL-Bicep accelerator, copy the workloads/103-core-azure-update-manager files to your local ALZ-Bicep\workloads folder. We keep custom modules in a separate **workloads** folder so as not to cause any conflicts with upgrading of the ALZ-Bicep files.
 
 The aumAccelerator uses several Bicep modules from the ALZ-Bicep repo. The **policyAssignmentManagementGroup.bicep** module to assign the *"Configure periodic checking for missing system updates on azure virtual machines"* policy definition to the Intermediate root management group. If you are not familar with policy assignment in Azure Landing zones, I recommend you visit the [Azure Enterprise Scale Landing Zone (ESLZ)](https://github.com/Azure/Enterprise-Scale/wiki/ALZ-Policies) architecture documentation before continuing.
 
-### Common Azure Resource Modules Library (CARML)
-The CARML Github repo includes a library of mature and curated Bicep modules as well as a Continuous Integration (CI) environment leveraged for modules' validation and versioned publishing. The aumAccelerator uses the /authorization/policy-assignment/main.bicep module to assign Azure maintenance configurations. I simply download the CARML repo zip file, open and copy the modules/authorization folder to your local ALZ-Bicep\CARML\modules\authorization folder. This folder structure will not exist, so by copying the files, you will create it. There are a number of useful modules in the authorization folder. Consult the README.MD located in each sub-folder for usage information.
+### Azure Verified Modules (AVM)
+Azure Verified Modules (AVM) is an initiative to consolidate and set the standards for what a good Infrastructure-as-Code module looks like.
 
-## Modules
+Modules will then align to these standards, across languages (Bicep, Terraform etc.) and will then be classified as AVMs and available from their respective language specific registries.
+
+AVM is a common code base, a toolkit for our Customers, our Partners, and Microsoft. It’s an official, Microsoft driven initiative, with a devolved ownership approach to develop modules, leveraging internal & external communities.
+
+Azure Verified Modules enable and accelerate consistent solution development and delivery of cloud-native or migrated applications and their supporting infrastructure by codifying Microsoft guidance (WAF), with best practice configurations.
+
+## Accelerator Modules
 1. **policyAssignmentManagementGroup.bicep** - Assigns the *"Configure periodic checking for missing system updates on azure virtual machines"* policy definition to the Intermediate root management group. This module comes from the ALZ-Bicep repo.
-2. **resourceGroup.bicep** - Creates the Azure resource group in the specified subscription for accelerator resources. This module comes from the ALZ-Bicep repo. (This has been replaced by an Azure Verified module.)
-3. **maintenanceConfiguration.all.bicep** - This module will loop through all subscription objects defined in an array in the Bicep parameters file and creates the maintenance configurations for the specified subscription. This is a custom accelerator module.
+2. **resourceGroup.bicep** - Creates the Azure resource group in the specified subscription for accelerator resources. This module comes from the ALZ-Bicep repo. (This has been replaced by an Azure Verified module in the main.bicep template.)
+3. **maintenanceConfiguration.all.bicep** - This module will loop through all subscription objects defined in an array in the Bicep parameters file and create the maintenance configurations for the specified subscription. This is a custom accelerator module.
 4. **managedIdentity.bicep** - Creates the Azure managed identity which will be assigned with "Log Analytics Reader" role for the specified subscription. This is a custom accelerator module.
 5. **managedIdentityRoleAssignmentSubscription.bicep** - Assigns the *"Log Analytics Reader"* role to the Azure managed identity for the specified subscriptions. This role assignment is required in order for the alerts to function. This is a custom accelerator module.
 6. **alertProcessingRule.bicep** - Creates the Azure alert processing rule for the specified subscription. Also creates an Action group.
@@ -33,4 +39,23 @@ An Azure DevOps pipeline is available in the workloads/103-core-azure-update-man
 ## Subscriptions array in Bicep parameters file (Bicepparm)
 Deployment is meant to be by subscription, for each subscription you need Azure Update Manager deployed, duplicate the first subscription object, paste and update per subscription.
 
+## Local Deployment
+A Powershell script is provided to deploy the accelerator without using a pipeline. It is located in the workloads/lab folder. 
 
+```
+$Location = 'centralus'
+
+#Lab
+$TenantId = '00000000-0000-0000-0000-123456789098'
+$ManagementGroupPrefix = 'alz'
+
+Connect-AzAccount -TenantId $tenantId
+
+# Create resources in each subscription, distributed.
+New-AzManagementGroupDeployment -Name "alz-aumAccelerator-$Location" `
+  -TemplateFile "workloads/103-core-azure-update-manager/main.bicep" `
+  -TemplateParameterFile "workloads/103-core-azure-update-manager/main.bicepparam" `
+  -ManagementGroupId $ManagementGroupPrefix `
+  -Location $Location -verbose 
+
+```
