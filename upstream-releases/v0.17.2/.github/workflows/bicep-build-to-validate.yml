@@ -1,0 +1,129 @@
+name: Unit Tests - Bicep Files and Modules
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "**.bicep"
+      - "ps-rule.yaml"
+      - ".ps-rule/*"
+      - "**/bicepconfig.json"
+  workflow_dispatch: {}
+
+jobs:
+  bicep_unit_tests:
+    name: Bicep Build & Lint All Modules
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: List Currently Installed Bicep Version
+        shell: pwsh
+        run: |
+          $bicepVersion = bicep --version
+          Write-Information "=====> Currently installed Bicep version is: $bicepVersion <=====" -InformationAction Continue
+
+      - name: Install latest version of Bicep
+        shell: sh
+        run: |
+          # From https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/install#linux
+          # Fetch the latest Bicep CLI binary
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          # Mark it as executable
+          chmod +x ./bicep
+          # Add bicep to your PATH (requires admin)
+          sudo mv ./bicep /usr/local/bin/bicep
+          # Verify you can now access the 'bicep' command
+          bicep --help
+          # Done!
+
+      - name: List Now Installed Bicep Version
+        shell: pwsh
+        run: |
+          $bicepVersion = bicep --version
+          Write-Information "=====> Now installed Bicep version is: $bicepVersion <=====" -InformationAction Continue
+
+      - name: Bicep Build & Lint All Modules
+        shell: pwsh
+        run: |
+          $output = @()
+          Get-ChildItem -Recurse -Filter '*.bicep' -Exclude 'callModuleFromACR.example.bicep','orchHubSpoke.bicep' | ForEach-Object {
+              Write-Information "==> Attempting Bicep Build For File: $_" -InformationAction Continue
+              $bicepOutput = bicep build $_.FullName 2>&1
+              if ($LastExitCode -ne 0)
+              {
+                foreach ($item in $bicepOutput) {
+                  $output += "$($item) `r`n"
+                }
+              }
+              Else
+              {
+                echo "Bicep Build Successful for File: $_"
+              }
+          }
+          if ($output.length -gt 0) {
+            throw $output
+          }
+
+      - name: List Azure Resource Types
+        shell: pwsh
+        run: |
+          function Add-ToResourceTypesList {
+              param (
+                  [Parameter(Mandatory = $true)]
+                  [string] $Type
+              )
+              if (!$resourceTypesFullList.ContainsKey($Type)) {
+                  $resourceTypesFullList.Add($Type, 1)
+              }
+              else {
+                  $resourceTypesFullList[$Type] += 1
+              }
+          }
+
+          $resourceTypesFullList = @{}
+          Get-ChildItem -Path '.\infra-as-code\bicep\modules' -Recurse -Filter '*.json' -Exclude 'callModuleFromACR.example.json', 'orchHubSpoke.json', '*parameters*.json', 'bicepconfig.json', '*policy_*.json' | ForEach-Object {
+              Write-Information "==> Reading Built ARM Template JSON File: $_" -InformationAction Continue
+              $armTemplate = Get-Content $_.FullName | ConvertFrom-Json -Depth 100
+              $armResourceTypes = $armTemplate.Resources
+              $armResourceTypes | ForEach-Object {
+                  if ($null -eq $_.Type) {
+                      $_.PSObject.Properties | ForEach-Object {
+                          Add-ToResourceTypesList -Type $_.Value.Type
+                      }
+                  }
+                  else {
+                      Add-ToResourceTypesList -Type $_.Type
+                  }
+              }
+          }
+
+          Write-Information "==> Remove nested deployments resource type" -InformationAction Continue
+          $resourceTypesFullList.Remove('Microsoft.Resources/Deployments')
+
+          Write-Information "***** List of resource types in ALZ-Bicep modules *****" -InformationAction Continue
+          $resourceTypesFullList.Keys | Sort-Object
+
+  azure_waf:
+    name: Test Azure Well-Architected Framework (PSRule)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Add pipeline tests for Azure Well-Architected Framework.
+      # See https://aka.ms/ps-rule-action for configuration options.
+      - name: Run PSRule analysis
+        uses: Microsoft/ps-rule@v2
+        with:
+          modules: PSRule.Rules.Azure
+          baseline: Azure.Preview
+        continue-on-error: true
